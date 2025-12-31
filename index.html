@@ -1,1 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Minha Estante 5 Colunas</title>
+    <style>
+        /* --- ESTILO GERAL --- */
+        body {
+            margin: 0; padding: 0;
+            background-color: transparent; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
 
+        .furniture-wrapper {
+            width: 95%;
+            max-width: 1100px;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- A ESTRUTURA DAS 5 COLUNAS --- */
+        .library-grid {
+            display: flex;
+            width: 100%;
+            background-color: #0d0d0d; 
+            border: 12px solid #1a1a1a; 
+            border-bottom: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+
+        .library-column {
+            /* Força cada coluna a ter exatamente 20% do espaço */
+            width: 20%; 
+            flex-shrink: 0; 
+            flex-grow: 0;
+            border-right: 10px solid #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        
+        .library-column:last-child {
+            border-right: none;
+        }
+
+        .shelf-row {
+            height: 120px; 
+            border-bottom: 10px solid #252525;
+            display: flex; 
+            align-items: flex-end; 
+            padding: 0 4px;
+            background: linear-gradient(to bottom, #050505, #121212); 
+            position: relative;
+            overflow: hidden; 
+        }
+
+        /* --- O RODAPÉ E BOTÃO SECRETO --- */
+        .shelf-footer {
+            width: 100%; 
+            display: flex; 
+            justify-content: space-between;
+        }
+
+        .foot {
+            width: 50px; height: 25px; 
+            background: #1a1a1a;
+            border-radius: 0 0 5px 5px;
+            position: relative;
+        }
+
+        #secret-btn {
+            width: 100%; height: 100%; 
+            opacity: 0; /* Totalmente invisível */
+            cursor: pointer; 
+            border: none;
+            background: transparent;
+        }
+
+        /* --- LIVROS --- */
+        .book {
+            margin-right: 1px;
+            background-size: cover; 
+            background-position: center;
+            box-shadow: 1px 0 3px rgba(0,0,0,0.8);
+            transition: transform 0.2s;
+            cursor: pointer; 
+            position: relative;
+            flex-shrink: 0; 
+        }
+
+        .book:hover {
+            transform: scale(1.05) translateY(-5px);
+            z-index: 10;
+        }
+
+        /* Livros de Enfeite */
+        .book-filler {
+            opacity: 0.5;
+            cursor: default;
+            background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a);
+            border-left: 1px solid #333;
+        }
+
+        /* --- PAINEL --- */
+        #admin-panel {
+            display: none; background: #151515; padding: 15px;
+            border-bottom: 2px solid #333; position: fixed;
+            top: 0; left: 0; right: 0; z-index: 1000;
+        }
+        .input-group { display: flex; gap: 5px; margin-bottom: 8px; justify-content: center; }
+        input { padding: 6px; background: #222; border: 1px solid #444; color: #eee; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="admin-panel">
+        <div class="input-group">
+            <input type="text" id="seriesName" placeholder="Título">
+            <input type="number" id="volNumber" placeholder="Vol" style="width:50px">
+            <input type="text" id="imgUrl" placeholder="URL Imagem">
+            <input type="text" id="pageLink" placeholder="Link Destino">
+            <button onclick="addBook()" style="background:#388E3C; color:white; border:none; padding:5px 15px; cursor:pointer">Add</button>
+            <button onclick="removeLast()" style="background:#555; color:white; border:none; padding:5px 10px; cursor:pointer">Desfazer</button>
+            <button onclick="togglePanel()" style="background:#D32F2F; color:white; border:none; padding:5px 10px; cursor:pointer">X</button>
+        </div>
+    </div>
+
+    <div class="furniture-wrapper">
+        <div class="library-grid" id="libraryGrid"></div>
+        <div class="shelf-footer">
+            <div class="foot"></div>
+            <div class="foot"></div>
+            <div class="foot"></div>
+            <div class="foot"></div>
+            <div class="foot">
+                <button id="secret-btn" onclick="togglePanel()"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLUMNS = 5;
+        const SHELVES = 6;
+        const PX_CM = 4.8;
+        const FILLER_COLORS = ['#1a1a1a', '#222', '#1e1e1e', '#252525'];
+
+        let myBooks = JSON.parse(localStorage.getItem('myMangaLibrary_v2')) || [];
+
+        function init() {
+            const grid = document.getElementById('libraryGrid');
+            grid.innerHTML = '';
+            for (let c = 0; c < COLUMNS; c++) {
+                const col = document.createElement('div');
+                col.className = 'library-column';
+                for (let s = 0; s < SHELVES; s++) {
+                    const shelf = document.createElement('div');
+                    shelf.className = 'shelf-row';
+                    shelf.id = `s-${c}-${s}`;
+                    col.appendChild(shelf);
+                }
+                grid.appendChild(col);
+            }
+            render();
+        }
+
+        function togglePanel() {
+            const p = document.getElementById('admin-panel');
+            p.style.display = p.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function addBook() {
+            const series = document.getElementById('seriesName').value;
+            const img = document.getElementById('imgUrl').value;
+            if(!series || !img) return alert("Título e Imagem obrigatórios");
+            
+            myBooks.push({
+                series, 
+                vol: document.getElementById('volNumber').value,
+                url: img,
+                link: document.getElementById('pageLink').value,
+                w: 1.6, h: 19 // Padrão
+            });
+            save();
+        }
+
+        function removeLast() { myBooks.pop(); save(); }
+        function save() { 
+            localStorage.setItem('myMangaLibrary_v2', JSON.stringify(myBooks)); 
+            render(); 
+        }
+
+        function render() {
+            document.querySelectorAll('.shelf-row').forEach(s => s.innerHTML = '');
+            let bookIdx = 0;
+
+            for (let c = 0; c < COLUMNS; c++) {
+                for (let s = 0; s < SHELVES; s++) {
+                    const shelf = document.getElementById(`s-${c}-${s}`);
+                    let maxWidth = shelf.clientWidth;
+                    let usedWidth = 0;
+
+                    // Livros Reais
+                    while (bookIdx < myBooks.length) {
+                        const b = myBooks[bookIdx];
+                        const wPx = b.w * PX_CM;
+                        if (usedWidth + wPx <= maxWidth) {
+                            shelf.appendChild(createBook(b, false));
+                            usedWidth += wPx;
+                            bookIdx++;
+                        } else break;
+                    }
+
+                    // Preenchimento Genérico
+                    while (usedWidth < maxWidth - 5) {
+                        const rndW = 1.2 + Math.random() * 1;
+                        const wPx = rndW * PX_CM;
+                        if (usedWidth + wPx <= maxWidth) {
+                            shelf.appendChild(createBook({w: rndW, h: 17 + Math.random()*4}, true));
+                            usedWidth += wPx;
+                        } else break;
+                    }
+                }
+            }
+        }
+
+        function createBook(data, isFiller) {
+            const div = document.createElement('div');
+            div.className = isFiller ? 'book book-filler' : 'book';
+            div.style.width = `${data.w * PX_CM}px`;
+            div.style.height = `${data.h * PX_CM}px`;
+            if(!isFiller) {
+                div.style.backgroundImage = `url(${data.url})`;
+                div.title = `${data.series} ${data.vol ? '#'+data.vol : ''}`;
+                if(data.link) div.onclick = () => window.open(data.link, '_blank');
+            } else {
+                div.style.backgroundColor = FILLER_COLORS[Math.floor(Math.random()*FILLER_COLORS.length)];
+            }
+            return div;
+        }
+
+        window.onload = init;
+        window.onresize = render;
+    </script>
+</body>
+</html>
